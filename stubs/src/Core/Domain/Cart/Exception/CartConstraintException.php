@@ -1,0 +1,22 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Domain\Cart\Exception;
+
+/**
+ * Thrown when cart constraints are violated
+ */
+class CartConstraintException extends \PrestaShop\PrestaShop\Core\Domain\Cart\Exception\CartException
+{
+    /**
+     * When cart product quantity is invalid
+     */
+    public const INVALID_QUANTITY = 1;
+    /**
+     * When cart product quantity is already correct
+     */
+    public const UNCHANGED_QUANTITY = 2;
+    /**
+     * When carrier is not found or inactive
+     */
+    public const INVALID_CARRIER = 3;
+}

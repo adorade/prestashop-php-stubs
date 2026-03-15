@@ -1,0 +1,33 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\MailTemplate\Transformation;
+
+/**
+ * TransformationInterface is used by the MailTemplateRendererInterface to apply a
+ * transformation on the generated template (textify html, inline css, add a css or
+ * an image per language).
+ */
+interface TransformationInterface
+{
+    /**
+     * @param string $templateContent
+     * @param array $templateVariables
+     *
+     * @return string
+     */
+    public function apply($templateContent, array $templateVariables);
+    /**
+     * Returns the type of templates this transformation is associated with,
+     * either html or txt, so that the renderer knows if it has to be applied
+     * or not
+     *
+     * @return string
+     */
+    public function getType();
+    /**
+     * @param LanguageInterface $language
+     *
+     * @return $this
+     */
+    public function setLanguage(\PrestaShop\PrestaShop\Core\Language\LanguageInterface $language);
+}

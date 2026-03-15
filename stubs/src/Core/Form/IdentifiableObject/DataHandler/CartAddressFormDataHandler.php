@@ -1,0 +1,30 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataHandler;
+
+class CartAddressFormDataHandler implements \PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataHandler\FormDataHandlerInterface
+{
+    /**
+     * @param CommandBusInterface $commandBus
+     */
+    public function __construct(\PrestaShop\PrestaShop\Core\CommandBus\CommandBusInterface $commandBus)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function create(array $data)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     *
+     * @throws CartConstraintException
+     * @throws CountryConstraintException
+     * @throws StateConstraintException
+     * @throws InvalidAddressTypeException
+     */
+    public function update($cartId, array $data)
+    {
+    }
+}

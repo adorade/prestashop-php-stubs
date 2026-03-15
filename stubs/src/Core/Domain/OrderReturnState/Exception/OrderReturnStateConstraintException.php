@@ -1,0 +1,18 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Domain\OrderReturnState\Exception;
+
+/**
+ * Is thrown when order return state constraint is violated
+ */
+class OrderReturnStateConstraintException extends \PrestaShop\PrestaShop\Core\Domain\OrderReturnState\Exception\OrderReturnStateException
+{
+    /**
+     * @var int Code is used when invalid name is provided for order return state
+     */
+    public const INVALID_NAME = 1;
+    /**
+     * @var int Code is used when empty name is provided for order return state
+     */
+    public const EMPTY_NAME = 2;
+}

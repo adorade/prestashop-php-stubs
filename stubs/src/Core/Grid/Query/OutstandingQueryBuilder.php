@@ -1,0 +1,29 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Grid\Query;
+
+final class OutstandingQueryBuilder implements \PrestaShop\PrestaShop\Core\Grid\Query\DoctrineQueryBuilderInterface
+{
+    /**
+     * @param Connection $connection
+     * @param string $dbPrefix
+     * @param DoctrineSearchCriteriaApplicatorInterface $criteriaApplicator
+     * @param int $contextLangId
+     * @param array $contextShopIds
+     */
+    public function __construct(\Doctrine\DBAL\Connection $connection, string $dbPrefix, \PrestaShop\PrestaShop\Core\Grid\Query\DoctrineSearchCriteriaApplicatorInterface $criteriaApplicator, int $contextLangId, array $contextShopIds)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getSearchQueryBuilder(\PrestaShop\PrestaShop\Core\Grid\Search\SearchCriteriaInterface $searchCriteria)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getCountQueryBuilder(\PrestaShop\PrestaShop\Core\Grid\Search\SearchCriteriaInterface $searchCriteria)
+    {
+    }
+}

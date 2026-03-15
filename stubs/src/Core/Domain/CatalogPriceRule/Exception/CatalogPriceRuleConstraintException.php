@@ -1,0 +1,22 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Domain\CatalogPriceRule\Exception;
+
+/**
+ * Thrown when catalog price rule constraints are violated
+ */
+class CatalogPriceRuleConstraintException extends \PrestaShop\PrestaShop\Core\Domain\CatalogPriceRule\Exception\CatalogPriceRuleException
+{
+    /**
+     * When catalog price rule id is not valid
+     */
+    public const INVALID_ID = 10;
+    /**
+     * When date-time format is invalid
+     */
+    public const INVALID_DATETIME = 20;
+    /**
+     * When date range is not valid
+     */
+    public const INVALID_DATE_RANGE = 30;
+}

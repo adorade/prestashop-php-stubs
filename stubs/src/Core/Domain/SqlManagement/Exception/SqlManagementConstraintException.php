@@ -1,0 +1,26 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Domain\SqlManagement\Exception;
+
+/**
+ * Is thrown when SqlManagement constraints are violated
+ */
+class SqlManagementConstraintException extends \PrestaShop\PrestaShop\Core\Domain\SqlManagement\Exception\SqlManagementException
+{
+    /**
+     * When database table name is invalid
+     */
+    public const INVALID_DATABASE_TABLE_NAME = 10;
+    /**
+     * When database table field is invalid
+     */
+    public const INVALID_DATABASE_TABLE_FIELD = 20;
+    /**
+     * When database table field name is invalid
+     */
+    public const INVALID_DATABASE_TABLE_FIELD_NAME = 30;
+    /**
+     * When database table field type is invalid
+     */
+    public const INVALID_DATABASE_TABLE_FIELD_TYPE = 40;
+}

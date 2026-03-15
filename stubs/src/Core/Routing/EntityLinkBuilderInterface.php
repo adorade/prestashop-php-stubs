@@ -1,0 +1,32 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Routing;
+
+/**
+ * Interface EntityLinkBuilderInterface is able to build links for entities, like
+ * edit or view link. Each interface is able to say if it can manage a certain type
+ * of entity.
+ */
+interface EntityLinkBuilderInterface
+{
+    /**
+     * @param string $entity
+     * @param array $parameters
+     *
+     * @return string
+     */
+    public function getViewLink($entity, array $parameters);
+    /**
+     * @param string $entity
+     * @param array $parameters
+     *
+     * @return string
+     */
+    public function getEditLink($entity, array $parameters);
+    /**
+     * @param string $entity
+     *
+     * @return bool
+     */
+    public function canBuild($entity);
+}
