@@ -1,0 +1,14 @@
+# composer
+/vendor
+composer.lock
+
+# macOS files
+.DS_Store
+._*
+
+# IDE files
+.vscode/
+
+# Local
+tmp/
+_extra/

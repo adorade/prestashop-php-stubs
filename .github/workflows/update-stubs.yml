@@ -1,0 +1,107 @@
+name: Update PrestaShop Stubs
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Specific PrestaShop version to process (optional)'
+        required: false
+        default: ''
+      force:
+        description: 'Force regeneration of stubs (bypass cache)'
+        type: boolean
+        required: false
+        default: false
+      clean-cache:
+        description: 'Number of days to keep cache files (default: 30)'
+        required: false
+        default: '30'
+      create_release:
+        description: 'Automatically create a GitHub Release for the new tag'
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  update-stubs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessary to see all tags and branches
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+
+      - name: Cache PrestaShop Stubs
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: ps-stubs-cache-${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ps-stubs-cache-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends p7zip-full jq
+
+      - name: Setup SSH keys
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SIGNING_KEY }}" > ~/.ssh/signing_key
+          chmod 600 ~/.ssh/signing_key
+
+      - name: Configure Git user and SSH signing
+        run: |
+          git config --global user.name "${{ secrets.GIT_USER_NAME }}"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+          git config --global gpg.format ssh
+          git config --global user.signingkey ~/.ssh/signing_key
+          git config --global commit.gpgsign true
+          git config --global tag.gpgsign true
+
+      - name: Make script executable
+        run: chmod +x ./scripts/create-stub.sh
+
+      - name: Run stub generator
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            ARGS="$ARGS --version ${{ github.event.inputs.version }}"
+          fi
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          if [ -n "${{ github.event.inputs.clean-cache }}" ]; then
+            ARGS="$ARGS --clean-cache ${{ github.event.inputs.clean-cache }}"
+          fi
+          ./scripts/create-stub.sh $ARGS
+
+      - name: Push changes and tags
+        run: |
+          git push origin --all
+          git push origin --tags --force
+
+      - name: Create/Update GitHub Release
+        if: github.event.inputs.create_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Capture the latest tag created by the script
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          # Create a zip of the stubs directory
+          zip -r "prestashop-stubs-${LATEST_TAG}.zip" stubs/
+          # Delete existing release to allow re-running the workflow for the same version
+          gh release delete "$LATEST_TAG" --yes || echo "No existing release to delete for $LATEST_TAG. Creating a new one."
+          # Create a new release with the updated assets and notes
+          gh release create "$LATEST_TAG" "prestashop-stubs-${LATEST_TAG}.zip" --title "PrestaShop ${LATEST_TAG#v} Stubs" --generate-notes

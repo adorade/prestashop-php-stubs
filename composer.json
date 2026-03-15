@@ -1,0 +1,21 @@
+{
+    "name": "adorade/prestashop-php-stubs",
+    "description": "PrestaShop function and class declaration stubs for static analysis.",
+    "authors": [
+        {
+            "name": "Marian Bolojan",
+            "email": "adorade@outlook.com"
+        }
+    ],
+    "config": {
+        "sort-packages": true
+    },
+    "homepage": "https://github.com/adorade/prestashop-php-stubs",
+    "require": {
+        "php": "^8.1"
+    },
+    "require-dev": {
+        "php-stubs/generator": "^0.8.6"
+    },
+    "license": "MIT"
+}
