@@ -3,7 +3,7 @@
 This package provides stub declarations for [PrestaShop](https://www.prestashop-project.org)
 functions, classes and interfaces.
 These stubs can help plugin and theme developers leverage IDE completion and static analysis tools like
-[PHPStan](http://phpstan.org).
+[PHPStan](http://phpstan.org) and/or [PHP Intelephense](https://intelephense.com/).
 
 The stubs are generated directly from the source using [php-stubs/generator](https://github.com/php-stubs/generator).
 
