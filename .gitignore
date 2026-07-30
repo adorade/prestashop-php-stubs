@@ -12,3 +12,8 @@ composer.lock
 # Local
 tmp/
 _extra/
+desktop.ini
+*ico-*.ico
+
+# Dev Tools
+.editorconfig
