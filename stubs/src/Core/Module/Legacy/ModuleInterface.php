@@ -1,0 +1,11 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Module\Legacy;
+
+/**
+ * Define what should be a module.
+ * Note:We don't typeHint on old Module class to not create hard dependency with Legacy.
+ */
+interface ModuleInterface
+{
+}

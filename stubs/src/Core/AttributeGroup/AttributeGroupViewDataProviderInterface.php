@@ -1,0 +1,24 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\AttributeGroup;
+
+/**
+ * Defines contract for services that provides attribute group view action data
+ */
+interface AttributeGroupViewDataProviderInterface
+{
+    /**
+     * @param int $attributeGroupId
+     *
+     * @return bool
+     */
+    public function isColorGroup($attributeGroupId);
+    /**
+     * Provides the name of attribute group by its id
+     *
+     * @param int $attributeGroupId
+     *
+     * @return string
+     */
+    public function getAttributeGroupNameById($attributeGroupId);
+}
