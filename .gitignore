@@ -15,5 +15,8 @@ _extra/
 desktop.ini
 *ico-*.ico
 
+# Cache
+.cache/
+
 # Dev Tools
 .editorconfig
