@@ -1,0 +1,23 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\Product\Pack\CommandHandler;
+
+/**
+ * Handles @see SetPackProductsCommand using legacy object model
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+final class SetPackProductsHandler implements \PrestaShop\PrestaShop\Core\Domain\Product\Pack\CommandHandler\SetPackProductsHandlerInterface
+{
+    /**
+     * @param \PrestaShop\PrestaShop\Adapter\Product\Pack\Update\ProductPackUpdater $productPackUpdater
+     */
+    public function __construct(\PrestaShop\PrestaShop\Adapter\Product\Pack\Update\ProductPackUpdater $productPackUpdater)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\Product\Pack\Command\SetPackProductsCommand $command): void
+    {
+    }
+}

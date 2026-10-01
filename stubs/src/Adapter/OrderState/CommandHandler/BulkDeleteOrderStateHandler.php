@@ -1,0 +1,19 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\OrderState\CommandHandler;
+
+/**
+ * Handles command which deletes OrderStatees in bulk action
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+class BulkDeleteOrderStateHandler extends \PrestaShop\PrestaShop\Adapter\OrderState\CommandHandler\AbstractOrderStateHandler implements \PrestaShop\PrestaShop\Core\Domain\OrderState\CommandHandler\BulkDeleteOrderStateHandlerInterface
+{
+    /**
+     * {@inheritdoc}
+     *
+     * @throws \PrestaShop\PrestaShop\Core\Domain\OrderState\Exception\BulkDeleteOrderStateException
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\OrderState\Command\BulkDeleteOrderStateCommand $command): void
+    {
+    }
+}

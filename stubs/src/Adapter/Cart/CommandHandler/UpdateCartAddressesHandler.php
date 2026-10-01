@@ -1,0 +1,23 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\Cart\CommandHandler;
+
+/**
+ * @internal
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+final class UpdateCartAddressesHandler extends \PrestaShop\PrestaShop\Adapter\Cart\AbstractCartHandler implements \PrestaShop\PrestaShop\Core\Domain\Cart\CommandHandler\UpdateCartAddressesHandlerInterface
+{
+    /**
+     * @param \PrestaShop\PrestaShop\Core\Domain\Cart\CommandHandler\UpdateCartCarrierHandlerInterface $updateCartCarrierHandler
+     */
+    public function __construct(\PrestaShop\PrestaShop\Core\Domain\Cart\CommandHandler\UpdateCartCarrierHandlerInterface $updateCartCarrierHandler)
+    {
+    }
+    /**
+     * @param \PrestaShop\PrestaShop\Core\Domain\Cart\Command\UpdateCartAddressesCommand $command
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\Cart\Command\UpdateCartAddressesCommand $command)
+    {
+    }
+}

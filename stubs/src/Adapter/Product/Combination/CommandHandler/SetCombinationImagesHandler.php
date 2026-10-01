@@ -1,0 +1,23 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\Product\Combination\CommandHandler;
+
+/**
+ * Handles @see SetCombinationImagesCommand using adapter udpater service
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+final class SetCombinationImagesHandler implements \PrestaShop\PrestaShop\Core\Domain\Product\Combination\CommandHandler\SetCombinationImagesHandlerInterface
+{
+    /**
+     * @param \PrestaShop\PrestaShop\Adapter\Product\Combination\Update\CombinationImagesUpdater $combinationImagesUpdater
+     */
+    public function __construct(\PrestaShop\PrestaShop\Adapter\Product\Combination\Update\CombinationImagesUpdater $combinationImagesUpdater)
+    {
+    }
+    /**
+     * {@inheritDoc}
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\Product\Combination\Command\SetCombinationImagesCommand $command): void
+    {
+    }
+}

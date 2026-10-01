@@ -1,0 +1,1600 @@
+<?php
+
+class ToolsCore
+{
+    public const CACERT_LOCATION = 'https://curl.haxx.se/ca/cacert.pem';
+    public const SERVICE_LOCALE_REPOSITORY = 'prestashop.core.localization.locale.repository';
+    public const CACHE_LIFETIME_SECONDS = 604800;
+    public const PASSWORDGEN_FLAG_NUMERIC = \PrestaShop\PrestaShop\Core\Security\PasswordGenerator::PASSWORDGEN_FLAG_NUMERIC;
+    public const PASSWORDGEN_FLAG_NO_NUMERIC = \PrestaShop\PrestaShop\Core\Security\PasswordGenerator::PASSWORDGEN_FLAG_NO_NUMERIC;
+    public const PASSWORDGEN_FLAG_RANDOM = \PrestaShop\PrestaShop\Core\Security\PasswordGenerator::PASSWORDGEN_FLAG_RANDOM;
+    public const PASSWORDGEN_FLAG_ALPHANUMERIC = \PrestaShop\PrestaShop\Core\Security\PasswordGenerator::PASSWORDGEN_FLAG_ALPHANUMERIC;
+    public const LANGUAGE_EXTRACTOR_REGEXP = '#(?<=-)\w\w|\w\w(?!-)#';
+    /**
+     * Schemes an untrusted (user-supplied) URL is allowed to use, mapped to their default port.
+     * Any other wrapper (phar://, file://, gopher://, data://, ...) is rejected.
+     *
+     * Must stay in sync with the CURLPROTO_* mask applied in file_get_contents_curl():
+     * a scheme accepted here has to be one curl is also allowed to speak, otherwise a URL
+     * passes our own validation only for curl to refuse it -- or, when CURLPROTO_HTTP is
+     * not defined and no mask can be applied, to be fetched with a protocol we never
+     * meant to allow. That is why sftp is absent.
+     *
+     * @see Tools::copyFromUntrustedSource()
+     */
+    public const UNTRUSTED_URL_ALLOWED_SCHEMES = ['http' => 80, 'https' => 443, 'ftp' => 21, 'ftps' => 990];
+    /**
+     * IPv4 ranges that FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE does
+     * NOT reject but that are never a legitimate remote source.
+     * Each entry is [network, prefix length].
+     */
+    protected const SSRF_BLOCKED_IPV4_RANGES = [
+        ['100.64.0.0', 10],
+        // RFC 6598 shared address space (CGNAT), used as internal range by some hosts
+        ['192.0.0.0', 24],
+        // RFC 6890 IETF protocol assignments
+        ['192.0.2.0', 24],
+        // RFC 5737 TEST-NET-1
+        ['198.18.0.0', 15],
+        // RFC 2544 benchmarking
+        ['198.51.100.0', 24],
+        // RFC 5737 TEST-NET-2
+        ['203.0.113.0', 24],
+        // RFC 5737 TEST-NET-3
+        ['224.0.0.0', 4],
+    ];
+    /**
+     * IPv6 ranges that FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE does
+     * NOT reject but that are never a legitimate remote source.
+     * Each entry is [network, prefix length].
+     */
+    protected const SSRF_BLOCKED_IPV6_RANGES = [
+        ['ff00::', 8],
+        // multicast (fe80::1 is caught by filter_var, ff02::1 is not)
+        ['100::', 64],
+        // RFC 6666 discard-only
+        ['fec0::', 10],
+        // deprecated site-local (filter_var only catches fe80::/10)
+        ['2001::', 32],
+    ];
+    /**
+     * IPv6 ranges that carry an IPv4 address inside them. Such an address must be
+     * range-checked as the IPv4 address it really reaches, because the IPv4 flags of
+     * filter_var() do not apply to IPv6 notation: without this, ::ffff:169.254.169.254
+     * is reported as a public address and the cloud metadata endpoint stays reachable.
+     * Each entry is [network, prefix length, byte offset of the embedded IPv4].
+     */
+    protected const SSRF_IPV4_IN_IPV6_RANGES = [
+        ['::ffff:0:0', 96, 12],
+        // IPv4-mapped
+        ['64:ff9b::', 96, 12],
+        // RFC 6052 NAT64
+        ['::', 96, 12],
+        // deprecated IPv4-compatible
+        ['2002::', 16, 2],
+    ];
+    protected static $file_exists_cache = [];
+    protected static $_forceCompile;
+    protected static $_caching;
+    protected static $_string_modifier;
+    protected static $_user_plateform;
+    protected static $_user_browser;
+    protected static $request;
+    protected static $cldr_cache = [];
+    protected static $colorBrightnessCalculator;
+    protected static $fallbackParameters = [];
+    /**
+     * Memoizes resolvePublicIps() for the duration of the request: importing a few
+     * thousand images from the same host would otherwise issue as many DNS lookups.
+     *
+     * @var array<string, string[]>
+     */
+    protected static $untrusted_url_resolve_cache = [];
+    public static $round_mode = \null;
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     */
+    public function __construct(?\Symfony\Component\HttpFoundation\Request $request = \null)
+    {
+    }
+    /**
+     * Properly clean static cache
+     */
+    public static function resetStaticCache()
+    {
+    }
+    /**
+     * Reset the request set during the first new Tools($request) call.
+     */
+    public static function resetRequest()
+    {
+    }
+    /**
+     * Random password generator.
+     *
+     * @param int $length Desired length (optional)
+     * @param string $flag Output type (NUMERIC, ALPHANUMERIC, NO_NUMERIC, RANDOM)
+     *
+     * @return string|false Password
+     */
+    public static function passwdGen($length = 8, $flag = self::PASSWORDGEN_FLAG_ALPHANUMERIC)
+    {
+    }
+    /**
+     * Replace text within a portion of a string.
+     *
+     * Replaces a string matching a search, (optionally) string from a certain position
+     *
+     * @param string $search The string to search in the input string
+     * @param string $replace The replacement string
+     * @param string $subject The input string
+     * @param int $cur Starting position cursor for the search
+     *
+     * @return string the result string is returned
+     */
+    public static function strReplaceFirst($search, $replace, $subject, $cur = 0)
+    {
+    }
+    /**
+     * Redirect user to another page.
+     *
+     * Warning: uses exit
+     *
+     * @param string $url Desired URL
+     * @param string $base_uri Base URI (optional)
+     * @param Link|null $link
+     * @param string|array $headers A list of headers to send before redirection
+     */
+    public static function redirect($url, $base_uri = \__PS_BASE_URI__, ?\Link $link = \null, $headers = \null)
+    {
+    }
+    /**
+     * Redirect user to another page (using header Location)
+     *
+     * Warning: uses exit
+     *
+     * @param string $url Desired URL
+     */
+    public static function redirectAdmin($url)
+    {
+    }
+    /**
+     * Sanitize an url used in the Admin (back office context) to make sure it is correctly written to be
+     * used for redirection. If the provided URL is not absolute the shop url is prepended, if the admin
+     * folder is absent it is also prepended. Absolute urls are left untouched.
+     *
+     * @param string $url
+     *
+     * @return string
+     */
+    public static function sanitizeAdminUrl(string $url): string
+    {
+    }
+    /**
+     * Returns the available protocol for the current shop in use
+     * SSL if Configuration is set on and available for the server.
+     *
+     * @return string
+     */
+    public static function getShopProtocol()
+    {
+    }
+    /**
+     * Returns the set protocol according to configuration (http[s]).
+     *
+     * @param bool $use_ssl true if require ssl
+     *
+     * @return string (http|https)
+     */
+    public static function getProtocol($use_ssl = \null)
+    {
+    }
+    /**
+     * Returns the <b>current</b> host used, with the protocol (http or https) if $http is true
+     * This function should not be used to choose http or https domain name.
+     * Use Tools::getShopDomain() or Tools::getShopDomainSsl instead.
+     *
+     * @param bool $http
+     * @param bool $entities
+     * @param bool $ignore_port
+     *
+     * @return string host
+     */
+    public static function getHttpHost($http = \false, $entities = \false, $ignore_port = \false)
+    {
+    }
+    /**
+     * Returns domain name according to configuration and ignoring ssl.
+     *
+     * @param bool $http if true, return domain name with protocol
+     * @param bool $entities if true, convert special chars to HTML entities
+     *
+     * @return string domain
+     */
+    public static function getShopDomain($http = \false, $entities = \false)
+    {
+    }
+    /**
+     * Returns domain name according to configuration and depending on ssl activation.
+     *
+     * @param bool $http if true, return domain name with protocol
+     * @param bool $entities if true, convert special chars to HTML entities
+     *
+     * @return string domain
+     */
+    public static function getShopDomainSsl($http = \false, $entities = \false)
+    {
+    }
+    /**
+     * Get the server variable SERVER_NAME.
+     * Relies on $_SERVER
+     *
+     * @return string server name
+     */
+    public static function getServerName()
+    {
+    }
+    /**
+     * Get the server variable REMOTE_ADDR, or the client IP from HTTP_X_FORWARDED_FOR (when using proxy).
+     *
+     * Parses the XFF chain from right-to-left to prevent IP spoofing (CWE-290 / CWE-348):
+     * the rightmost entries are appended by trusted proxy infrastructure and cannot be forged
+     * by the client. The leftmost entry is entirely client-controlled and must never be trusted.
+     *
+     * @return string $remote_addr ip of client
+     */
+    public static function getRemoteAddr()
+    {
+    }
+    /**
+     * Check if the current page use SSL connection on not.
+     * Relies on $_SERVER global being filled
+     *
+     * @return bool true if SSL is used
+     */
+    public static function usingSecureMode()
+    {
+    }
+    /**
+     * Get the current url prefix protocol (https/http).
+     *
+     * @return string protocol
+     */
+    public static function getCurrentUrlProtocolPrefix()
+    {
+    }
+    /**
+     * Get the current url
+     *
+     * @return string current url
+     */
+    public static function getCurrentUrl(): string
+    {
+    }
+    /**
+     * Returns a safe URL referrer.
+     *
+     * @param string $referrer URL referrer
+     *
+     * @return string secured referrer
+     */
+    public static function secureReferrer($referrer)
+    {
+    }
+    /**
+     * Indicates if the provided URL belongs to this shop (relative urls count as belonging to the shop).
+     *
+     * @param string $url
+     *
+     * @return bool
+     */
+    public static function urlBelongsToShop($url)
+    {
+    }
+    /**
+     * Safely extracts the host part from an URL.
+     *
+     * @param string $url
+     *
+     * @return string
+     */
+    public static function extractHost($url)
+    {
+    }
+    /**
+     * Get a value from $_POST / $_GET
+     * if unavailable, take a default value.
+     *
+     * @param string $key Value key
+     * @param mixed $default_value (optional)
+     *
+     * @return mixed Value
+     */
+    public static function getValue($key, $default_value = \false)
+    {
+    }
+    /**
+     * Get all values from $_POST/$_GET.
+     *
+     * @return mixed
+     */
+    public static function getAllValues()
+    {
+    }
+    /**
+     * Checks if a key exists either in $_POST or $_GET.
+     *
+     * @param string $key
+     *
+     * @return bool
+     */
+    public static function getIsset($key)
+    {
+    }
+    /**
+     * This method was named "Change language in cookie while clicking on a flag.",
+     * but as of 25.12.2025, it does not really work at all. Language detection will
+     * never work because the language is exclusively determined by the URL, the isolang
+     * is always set and the HTTP_ACCEPT_LANGUAGE is not parsed properly anyway.
+     *
+     * @return string iso code
+     */
+    public static function setCookieLanguage($cookie = \null)
+    {
+    }
+    /**
+     * Detects proper id_language by the isolang parameter in the request and assigns
+     * it to the context and cookie. The method naming is a bit confusing as it does
+     * not switch anything. Language is exclusively determined by the URL.
+     *
+     * @todo - The behavior is a bit non stable, it should probably throw exceptions
+     * or somehow notify that nonsense is being present. If you for example pass a non
+     * existent language in the URL and you get "zz" in isolang, you will end up with:
+     * $_GET['isolang'] = zz
+     * $_GET['id_lang'] = null
+     * $context->cookie->id_lang = default language id from config.inc.php
+     * $context->language = default language from config.inc.php
+     *
+     * @param Context|null $context
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public static function switchLanguage(?\Context $context = \null)
+    {
+    }
+    public static function getCountry($address = \null)
+    {
+    }
+    /**
+     * Set cookie currency from POST or default currency.
+     *
+     * @return Currency|array
+     */
+    public static function setCurrency($cookie)
+    {
+    }
+    /**
+     * Return current locale
+     *
+     * @param Context $context
+     *
+     * @return \PrestaShop\PrestaShop\Core\Localization\LocaleInterface
+     *
+     * @throws Exception
+     */
+    public static function getContextLocale(\Context $context)
+    {
+    }
+    public static function displayPriceSmarty($params, &$smarty)
+    {
+    }
+    /**
+     * Return price converted.
+     *
+     * @param float|null $price Product price
+     * @param array|Currency|int|null $currency Current currency object
+     * @param bool $to_currency convert to currency or from currency to default currency
+     * @param Context|null $context
+     *
+     * @return float|null Price
+     */
+    public static function convertPrice($price, $currency = \null, $to_currency = \true, ?\Context $context = \null)
+    {
+    }
+    /**
+     * Convert amount from a currency to an other currency automatically.
+     *
+     * @param float $amount
+     * @param Currency $currency_from if null we used the default currency
+     * @param Currency $currency_to if null we used the default currency
+     */
+    public static function convertPriceFull($amount, ?\Currency $currency_from = \null, ?\Currency $currency_to = \null)
+    {
+    }
+    /**
+     * Display date regarding to language preferences.
+     *
+     * @param array $params Date, format...
+     * @param object $smarty Smarty object for language preferences
+     *
+     * @return string Date
+     */
+    public static function dateFormat($params, &$smarty)
+    {
+    }
+    /**
+     * Display date regarding to language preferences.
+     *
+     * @param string $date Date to display format UNIX
+     * @param bool $full With time or not (optional)
+     *
+     * @return string Date
+     */
+    public static function displayDate($date, bool $full = \false)
+    {
+    }
+    /**
+     * Get localized date format.
+     *
+     * @return string Date format
+     */
+    public static function getDateFormat()
+    {
+    }
+    /**
+     * Get formatted date.
+     *
+     * @param string $date_str Date string
+     * @param bool $full With time or not (optional)
+     *
+     * @return string Formatted date
+     */
+    public static function formatDateStr($date_str, $full = \false)
+    {
+    }
+    /**
+     * Sanitize a string.
+     *
+     * @param string $string String to sanitize
+     * @param bool $html String contains HTML or not (optional)
+     *
+     * @return string Sanitized string
+     */
+    public static function safeOutput($string, $html = \false)
+    {
+    }
+    public static function htmlentitiesUTF8($string, $type = \ENT_QUOTES)
+    {
+    }
+    public static function htmlentitiesDecodeUTF8($string)
+    {
+    }
+    /**
+     * Delete directory and subdirectories.
+     *
+     * @param string $dirname Directory name
+     */
+    public static function deleteDirectory($dirname, $delete_self = \true)
+    {
+    }
+    /**
+     * Delete file.
+     *
+     * @param string $file File path
+     * @param array $exclude_files Excluded files
+     *
+     * @return bool
+     */
+    public static function deleteFile($file, $exclude_files = [])
+    {
+    }
+    /**
+     * Clear XML cache folder.
+     */
+    public static function clearXMLCache()
+    {
+    }
+    /**
+     * Depending on _PS_MODE_DEV_ throws an exception or returns a error message.
+     *
+     * @param string|null $errorMessage Error message (defaults to "Fatal error")
+     * @param bool $htmlentities DEPRECATED since 1.7.4.0
+     * @param Context|null $context DEPRECATED since 1.7.4.0
+     *
+     * @return string
+     *
+     * @throws PrestaShopException If _PS_MODE_DEV_ is enabled
+     *
+     * @deprecated since 9.0.0 - Please throw an exception directly. It will be handled better and logged
+     * in all enviroments, to both PHP and our logs. This method will be eventually removed
+     */
+    public static function displayError($errorMessage = \null, $htmlentities = \null, ?\Context $context = \null)
+    {
+    }
+    /**
+     * Display an error with detailed object.
+     *
+     * @param mixed $object
+     * @param bool $kill
+     *
+     * @return mixed
+     */
+    public static function dieObject($object, $kill = \true)
+    {
+    }
+    public static function debug_backtrace($start = 0, $limit = \null)
+    {
+    }
+    /**
+     * Prints object information into error log.
+     *
+     * @see error_log()
+     * @deprecated since 9.0.0 and will be removed in 10.0.0. Use error_log directly.
+     *             If you have an object or array, you can stringify it for example by print_r($object, true).
+     *
+     * @param mixed $object
+     * @param int|null $message_type
+     * @param string|null $destination
+     * @param string|null $extra_headers
+     *
+     * @return bool
+     */
+    public static function error_log($object, $message_type = \null, $destination = \null, $extra_headers = \null)
+    {
+    }
+    /**
+     * Check if submit has been posted.
+     *
+     * @param string $submit submit name
+     */
+    public static function isSubmit($submit)
+    {
+    }
+    /**
+     * Hash password.
+     *
+     * @param string $passwd String to has
+     *
+     * @return string Hashed password
+     */
+    public static function hash($passwd)
+    {
+    }
+    /**
+     * Hash data string.
+     *
+     * @param string $data String to encrypt
+     *
+     * @return string Hashed IV
+     */
+    public static function hashIV($data)
+    {
+    }
+    /**
+     * Get token to prevent CSRF.
+     *
+     * @param bool|string $page
+     * @param Context|null $context
+     *
+     * @return string
+     */
+    public static function getToken($page = \true, ?\Context $context = \null)
+    {
+    }
+    /**
+     * Tokenize a string.
+     *
+     * @param string $string String to encrypt
+     *
+     * @return string|bool false if given string is empty
+     */
+    public static function getAdminToken($string)
+    {
+    }
+    /**
+     * @param string $tab
+     * @param Context $context
+     *
+     * @return bool|string
+     */
+    public static function getAdminTokenLite($tab, ?\Context $context = \null)
+    {
+    }
+    /**
+     * @param array $params
+     *
+     * @return bool|string
+     */
+    public static function getAdminTokenLiteSmarty($params)
+    {
+    }
+    /**
+     * Get a valid URL to use from BackOffice.
+     *
+     * @param string $url An URL to use in BackOffice
+     * @param bool $entities Set to true to use htmlentities function on URL param
+     *
+     * @return string
+     */
+    public static function getAdminUrl($url = \null, $entities = \false)
+    {
+    }
+    /**
+     * Get a valid image URL to use from BackOffice.
+     *
+     * @param string $image Image name
+     * @param bool $entities Set to true to use htmlentities function on image param
+     *
+     * @return string
+     */
+    public static function getAdminImageUrl($image = \null, $entities = \false)
+    {
+    }
+    /**
+     * Return a friendly url made from the provided string
+     * If the mbstring library is available, the output is the same as the js function of the same name.
+     *
+     * @param string $str
+     *
+     * @return string|bool
+     */
+    public static function str2url($str)
+    {
+    }
+    /**
+     * Replace all accented chars by their equivalent non accented chars.
+     *
+     * @param string $str
+     *
+     * @return string
+     */
+    public static function replaceAccentedChars($str)
+    {
+    }
+    /**
+     * Truncate strings.
+     *
+     * @param string $str
+     * @param int $max_length Max length
+     * @param string $suffix Suffix optional
+     *
+     * @return string $str truncated
+     */
+    /* CAUTION : Use it only on module hookEvents.
+     ** For other purposes use the smarty function instead */
+    public static function truncate($str, $max_length, $suffix = '...')
+    {
+    }
+    /* Copied from CakePHP String utility file */
+    public static function truncateString($text, $length = 120, $options = [])
+    {
+    }
+    public static function normalizeDirectory($directory)
+    {
+    }
+    /**
+     * Generate date form.
+     *
+     * @return array $tab html data with 3 cells :['days'], ['months'], ['years']
+     */
+    public static function dateYears()
+    {
+    }
+    public static function dateDays()
+    {
+    }
+    public static function dateMonths()
+    {
+    }
+    public static function hourGenerate($hours, $minutes, $seconds)
+    {
+    }
+    public static function dateFrom($date)
+    {
+    }
+    public static function dateTo($date)
+    {
+    }
+    public static function strtolower($str)
+    {
+    }
+    public static function strlen($str, $encoding = 'UTF-8')
+    {
+    }
+    public static function strtoupper($str)
+    {
+    }
+    public static function substr($str, $start, $length = \false, $encoding = 'UTF-8')
+    {
+    }
+    public static function strpos($str, $find, $offset = 0, $encoding = 'UTF-8')
+    {
+    }
+    public static function strrpos($str, $find, $offset = 0, $encoding = 'UTF-8')
+    {
+    }
+    public static function ucfirst($str)
+    {
+    }
+    public static function ucwords($str)
+    {
+    }
+    public static function orderbyPrice(&$array, $order_way)
+    {
+    }
+    public static function iconv($from, $to, $string)
+    {
+    }
+    public static function isEmpty($field)
+    {
+    }
+    /**
+     * Returns the rounded value of $value to specified precision, according to your configuration.
+     *
+     * Warning - this method accepts our own PS rounding constants with different integer values.
+     *
+     * @param float $value
+     * @param int $precision
+     * @param int<0,5>|null $round_mode
+     *
+     * @return float
+     */
+    public static function ps_round($value, $precision = 0, $round_mode = \null)
+    {
+    }
+    /**
+     * This method is a wrapper for PHP round method. It doesn't do much now, but it
+     * was needed in the past, because PHP did not support rounding modes like it does
+     * not. There was a huge logic here.
+     *
+     * Warning - this method accepts our own PS rounding methods with different integer values.
+     *
+     * @deprecated since 9.0.0 and will be removed in 10.0.0. Use ps_round or round directly.
+     *
+     * @param int|float $value
+     * @param int|float $places
+     * @param int<2,5> $mode (PS_ROUND_HALF_UP|PS_ROUND_HALF_DOWN|PS_ROUND_HALF_EVEN|PS_ROUND_HALF_ODD)
+     *
+     * @return false|float
+     */
+    public static function math_round($value, $places, $mode = \PS_ROUND_HALF_UP)
+    {
+    }
+    /**
+     * @param float $value
+     * @param int $mode
+     *
+     * @return float
+     */
+    public static function round_helper($value, $mode)
+    {
+    }
+    /**
+     * Returns the rounded value up of $value to specified precision.
+     *
+     * @param float $value
+     * @param int $precision
+     *
+     * @return float
+     */
+    public static function ceilf($value, $precision = 0)
+    {
+    }
+    /**
+     * Returns the rounded value down of $value to specified precision.
+     *
+     * @param float $value
+     * @param int $precision
+     *
+     * @return float
+     */
+    public static function floorf($value, $precision = 0)
+    {
+    }
+    /**
+     * file_exists() wrapper with cache to speedup performance.
+     *
+     * @param string $filename File name
+     *
+     * @return bool Cached result of file_exists($filename)
+     */
+    public static function file_exists_cache($filename)
+    {
+    }
+    /**
+     * file_exists() wrapper with a call to clearstatcache prior.
+     *
+     * @param string $filename File name
+     *
+     * @return bool Cached result of file_exists($filename)
+     */
+    public static function file_exists_no_cache($filename)
+    {
+    }
+    /**
+     * Refresh local CACert file.
+     */
+    public static function refreshCACertFile()
+    {
+    }
+    /**
+     * Validates an untrusted URL and builds the CURLOPT_RESOLVE entry pinning its host to a
+     * validated public IP, so that curl connects to the address we checked and nothing else.
+     *
+     * @param string $url
+     *
+     * @return string|null a "host:port:ip" entry, an empty string when the URL is valid but
+     *                     cannot be pinned (see below), or null when it must not be fetched
+     */
+    protected static function getPinnedResolveEntry($url)
+    {
+    }
+    /**
+     * Converts an internationalised host name to its ASCII (punycode) form.
+     *
+     * Required for two reasons: PHP's resolver functions do not perform the conversion
+     * themselves the way libcurl does, so an IDN host resolves partially at best and is
+     * then refused; and the CURLOPT_RESOLVE cache key has to be the ASCII form, which is
+     * what libcurl actually looks up.
+     *
+     * @param string $host
+     *
+     * @return string|null null when the host cannot be represented in ASCII
+     */
+    protected static function hostToAscii($host)
+    {
+    }
+    /**
+     * Whether an outbound proxy is configured through the environment. libcurl picks these
+     * up on its own, and when it does it resolves host names itself.
+     *
+     * @return bool
+     */
+    protected static function hasOutboundProxy()
+    {
+    }
+    /**
+     * @param string $scheme
+     *
+     * @return bool whether an untrusted URL may use this scheme
+     */
+    public static function isUntrustedUrlSchemeAllowed($scheme)
+    {
+    }
+    /**
+     * This method allows to get the content from either a URL or a local file.
+     *
+     * @param string $url the url to get the content from
+     * @param bool $use_include_path second parameter of http://php.net/manual/en/function.file-get-contents.php
+     * @param resource $stream_context third parameter of http://php.net/manual/en/function.file-get-contents.php
+     * @param int $curl_timeout
+     * @param bool $fallback whether or not to use the fallback if the main solution fails
+     *
+     * @return string|false false or the file content
+     */
+    public static function file_get_contents($url, $use_include_path = \false, $stream_context = \null, $curl_timeout = 5, $fallback = \false)
+    {
+    }
+    /**
+     * Create a local file from url
+     * required because ZipArchive is unable to extract from remote files.
+     *
+     * @param string $url the remote location
+     *
+     * @return bool|string false if failure, else the local filename
+     */
+    public static function createFileFromUrl($url)
+    {
+    }
+    public static function simplexml_load_file($url, $class_name = \null)
+    {
+    }
+    /**
+     * Copies a local or remote source to a local destination.
+     *
+     * WARNING: this follows the source wherever it points, which means an
+     * attacker-controlled $source can reach the local network (CWE-918) or a PHP stream
+     * wrapper such as phar://. Any caller whose $source can be influenced by user input
+     * MUST use copyFromUntrustedSource() instead.
+     *
+     * @param string $source
+     * @param string $destination
+     * @param resource|null $stream_context
+     *
+     * @return bool|int
+     */
+    public static function copy($source, $destination, $stream_context = \null)
+    {
+    }
+    /**
+     * SSRF-hardened variant of copy(), for sources that can be influenced by user input,
+     * e.g. CSV imports.
+     *
+     * Defense in depth against CWE-918: remote sources are restricted to the
+     * UNTRUSTED_URL_ALLOWED_SCHEMES allow-list, so any other wrapper (phar://, file://,
+     * gopher://, data://, ...) is rejected; hosts must resolve to public addresses only; the
+     * resolved IP is pinned (anti DNS-rebinding) and every redirect hop is re-validated.
+     * Local (scheme-less) sources keep the historical copy() behaviour.
+     *
+     * This is a separate method rather than an extra argument on copy() on purpose:
+     * adding a parameter to a public method turns every shop that overrides it into a
+     * fatal "declaration must be compatible" error.
+     *
+     * @param string $source
+     * @param string $destination
+     *
+     * @return bool
+     */
+    public static function copyFromUntrustedSource($source, $destination)
+    {
+    }
+    /**
+     * Resolves a host to its IP addresses and returns them only if ALL of them
+     * are public. Returns an empty array when resolution fails or any address is
+     * private/reserved (fail-closed).
+     *
+     * @param string $host hostname or IP literal
+     *
+     * @return string[] validated public IPs (empty if unsafe/unresolvable)
+     */
+    public static function resolvePublicIps($host)
+    {
+    }
+    /**
+     * @param string $ip
+     *
+     * @return bool true when $ip is a valid, non-private, non-reserved address
+     */
+    public static function isPublicIp($ip)
+    {
+    }
+    /**
+     * Canonicalises an IP address for range checking: IPv6 forms that embed an IPv4
+     * address (IPv4-mapped, IPv4-compatible, NAT64, 6to4) are reduced to that IPv4
+     * address, everything else is returned unchanged.
+     *
+     * @param string $ip
+     *
+     * @return string|null null when $ip is not a valid IP address
+     */
+    protected static function normalizeIpForRangeCheck($ip)
+    {
+    }
+    /**
+     * Tests a packed IP address (as returned by inet_pton) against a CIDR range.
+     * Works for both address families; a family mismatch is never a match.
+     *
+     * @param string $packedIp
+     * @param string $network
+     * @param int $prefixLength
+     *
+     * @return bool
+     */
+    protected static function packedIpInRange($packedIp, $network, $prefixLength)
+    {
+    }
+    /**
+     * Translates a string with underscores into camel case (e.g. first_name -> firstName).
+     *
+     * @prototype string public static function toCamelCase(string $str[, bool $capitalise_first_char = false])
+     *
+     * @param string $str Source string to convert in camel case
+     * @param bool $capitaliseFirstChar Optionnal parameters to transform the first letter in upper case
+     *
+     * @return string The string in camel case
+     */
+    public static function toCamelCase($str, $capitaliseFirstChar = \false)
+    {
+    }
+    /**
+     * Transform a CamelCase string to underscore_case string.
+     *
+     * 'CMSCategories' => 'cms_categories'
+     * 'RangePrice' => 'range_price'
+     *
+     * @param string $string
+     *
+     * @return string
+     */
+    public static function toUnderscoreCase($string)
+    {
+    }
+    /**
+     * Converts SomethingLikeThis to something-like-this
+     *
+     * @param string $string
+     *
+     * @return string
+     */
+    public static function camelCaseToKebabCase($string)
+    {
+    }
+    public static function parserSQL($sql)
+    {
+    }
+    protected static $_cache_nb_media_servers = \null;
+    /**
+     * @return bool
+     */
+    public static function hasMediaServer(): bool
+    {
+    }
+    /**
+     * @param string $filename
+     *
+     * @return string
+     */
+    public static function getMediaServer(string $filename): string
+    {
+    }
+    /**
+     * Get domains information with physical and virtual paths
+     *
+     * e.g: [
+     *  prestashop.localhost => [
+     *    physical => "/",
+     *    virtual => "",
+     *    id_shop => "1",
+     *  ]
+     * ]
+     *
+     * @return array
+     */
+    public static function getDomains()
+    {
+    }
+    public static function generateHtaccess($path = \null, $rewrite_settings = \null, $cache_control = \null, $specific = '', $disable_multiviews = \null, $medias = \false, $disable_modsec = \null)
+    {
+    }
+    /**
+     * @param bool $executeHook
+     *
+     * @return bool
+     */
+    public static function generateRobotsFile($executeHook = \false)
+    {
+    }
+    /**
+     * @return array
+     */
+    public static function getRobotsContent()
+    {
+    }
+    /**
+     * @return string php file to be run
+     */
+    public static function getDefaultIndexContent()
+    {
+    }
+    /**
+     * Return the directory list from the given $path.
+     *
+     * @param string $path
+     *
+     * @return array
+     */
+    public static function getDirectories($path)
+    {
+    }
+    /**
+     * Return the directory list from the given $path using php glob function.
+     *
+     * @param string $path
+     *
+     * @return array
+     */
+    public static function getDirectoriesWithGlob($path)
+    {
+    }
+    /**
+     * Return the directory list from the given $path using php readdir function.
+     *
+     * @param string $path
+     *
+     * @return array
+     */
+    public static function getDirectoriesWithReaddir($path)
+    {
+    }
+    /**
+     * Display a warning message indicating that the method is deprecated.
+     *
+     * @param string $message
+     */
+    public static function displayAsDeprecated($message = \null)
+    {
+    }
+    /**
+     * Display a warning message indicating that the parameter is deprecated.
+     */
+    public static function displayParameterAsDeprecated($parameter)
+    {
+    }
+    public static function displayFileAsDeprecated()
+    {
+    }
+    protected static function throwDeprecated($error, $message, $class)
+    {
+    }
+    public static function enableCache($level = 1, ?\Context $context = \null)
+    {
+    }
+    public static function restoreCacheSettings(?\Context $context = \null)
+    {
+    }
+    public static function isCallable($function)
+    {
+    }
+    public static function pRegexp($s, $delim)
+    {
+    }
+    public static function str_replace_once($needle, $replace, $haystack)
+    {
+    }
+    /**
+     * Identify the version of php
+     *
+     * @return string
+     */
+    public static function checkPhpVersion()
+    {
+    }
+    /**
+     * Try to open a zip file in order to check if it's valid
+     *
+     * @param string $from_file
+     *
+     * @return bool success
+     */
+    public static function ZipTest($from_file)
+    {
+    }
+    /**
+     * Extract a zip file to the given directory
+     *
+     * @param string $from_file
+     * @param string $to_dir
+     *
+     * @return bool
+     */
+    public static function ZipExtract($from_file, $to_dir)
+    {
+    }
+    /**
+     * @param string $path
+     * @param int $filemode
+     *
+     * @return bool
+     */
+    public static function chmodr($path, $filemode)
+    {
+    }
+    /**
+     * Get products order field name for queries.
+     *
+     * @param string $type by|way
+     * @param string|bool|null $value If no index given, use default order from admin -> pref -> products
+     * @param bool|string $prefix
+     *
+     * @return string Order by sql clause
+     */
+    public static function getProductsOrder($type, $value = \null, $prefix = \false)
+    {
+    }
+    /**
+     * Convert a shorthand byte value from a PHP configuration directive to an integer value.
+     *
+     * @param string $value value to convert
+     *
+     * @return int|string
+     */
+    public static function convertBytes($value)
+    {
+    }
+    /**
+     * Concat $begin and $end, add ? or & between strings.
+     *
+     * @param string $begin
+     * @param string $end
+     *
+     * @return string
+     */
+    public static function url($begin, $end)
+    {
+    }
+    /**
+     * Display error and dies or silently log the error.
+     *
+     * @param string $msg
+     * @param bool $die
+     *
+     * @return bool success of logging
+     */
+    public static function dieOrLog($msg, $die = \true)
+    {
+    }
+    /**
+     * Convert \n and \r\n and \r to <br />.
+     *
+     * @param string|null $str String to transform
+     *
+     * @return string|null New string
+     */
+    public static function nl2br($str)
+    {
+    }
+    /**
+     * Clear cache for Smarty.
+     *
+     * @param Smarty $smarty
+     * @param bool|string $tpl
+     * @param string $cache_id
+     * @param string $compile_id
+     *
+     * @return int|null number of cache files deleted
+     */
+    public static function clearCache($smarty = \null, $tpl = \false, $cache_id = \null, $compile_id = \null)
+    {
+    }
+    /**
+     * Clear compile for Smarty.
+     *
+     * @param Smarty $smarty
+     *
+     * @return int|null number of template files deleted
+     */
+    public static function clearCompile($smarty = \null)
+    {
+    }
+    /**
+     * Clear Smarty cache and compile folders.
+     */
+    public static function clearSmartyCache()
+    {
+    }
+    /**
+     * Clear Symfony cache.
+     *
+     * @param string $env
+     */
+    public static function clearSf2Cache($env = \null)
+    {
+    }
+    /**
+     * Clear both Smarty and Symfony cache.
+     */
+    public static function clearAllCache()
+    {
+    }
+    /**
+     * Allow to get the memory limit in octets.
+     *
+     * @return int|string the memory limit value in octet
+     */
+    public static function getMemoryLimit()
+    {
+    }
+    /**
+     * Gets the value of a configuration option in octets.
+     *
+     * @param string $option
+     *
+     * @return int|string the value of a configuration option in octets
+     */
+    public static function getOctets($option)
+    {
+    }
+    /**
+     * @return bool true if the server use 64bit arch
+     */
+    public static function isX86_64arch()
+    {
+    }
+    /**
+     * @return bool true if php-cli is used
+     */
+    public static function isPHPCLI()
+    {
+    }
+    public static function argvToGET($argc, $argv)
+    {
+    }
+    /**
+     * Get max file upload size considering server settings and optional max value.
+     *
+     * @param int $max_size optional max file size
+     *
+     * @return int max file size in bytes
+     */
+    public static function getMaxUploadSize($max_size = 0)
+    {
+    }
+    /**
+     * apacheModExists return true if the apache module $name is loaded.
+     *
+     * @TODO move this method in class Information (when it will exist)
+     *
+     * Notes: This method requires either apache_get_modules or phpinfo()
+     * to be available. With CGI mod, we cannot get php modules
+     *
+     * @param string $name module name
+     *
+     * @return bool true if exists
+     */
+    public static function apacheModExists($name)
+    {
+    }
+    /**
+     * Fix native uasort see: http://php.net/manual/en/function.uasort.php#114535.
+     *
+     * @param array $array
+     * @param callable $cmp_function
+     */
+    public static function uasort(&$array, $cmp_function)
+    {
+    }
+    /**
+     * Copy the folder $src into $dst, $dst is created if it do not exist.
+     *
+     * @param string $src
+     * @param string $dst
+     * @param bool $del if true, delete the file after copy
+     */
+    public static function recurseCopy($src, $dst, $del = \false)
+    {
+    }
+    /**
+     * @param string $path Path to scan
+     * @param string $ext Extention to filter files
+     * @param string $dir Add this to prefix output for example /path/dir/*
+     *
+     * @return array List of file found
+     */
+    public static function scandir($path, $ext = 'php', $dir = '', $recursive = \false)
+    {
+    }
+    /**
+     * Align version sent and use internal function.
+     *
+     * @param string $v1
+     * @param string $v2
+     * @param string $operator
+     *
+     * @return mixed
+     */
+    public static function version_compare($v1, $v2, $operator = '<')
+    {
+    }
+    /**
+     * Align 2 version with the same number of sub version
+     * version_compare will work better for its comparison :)
+     * (Means: '1.8' to '1.9.3' will change '1.8' to '1.8.0').
+     *
+     * @param string $v1
+     * @param string $v2
+     */
+    public static function alignVersionNumber(&$v1, &$v2)
+    {
+    }
+    public static function modRewriteActive()
+    {
+    }
+    /**
+     * Safely unserializes input string with protection against object injection.
+     *
+     * @param string $serialized Serialized string to decode
+     * @param bool $allowObjects Whether to allow object unserialization
+     *
+     * @return mixed|null Unserialized data or false on failure
+     */
+    public static function unSerialize($serialized, $allowObjects = \false)
+    {
+    }
+    /**
+     * Reproduce array_unique working before php version 5.2.9.
+     *
+     * @param array $array
+     *
+     * @return array
+     */
+    public static function arrayUnique($array)
+    {
+    }
+    /**
+     * Returns an array containing information about
+     * HTTP file upload variable ($_FILES).
+     *
+     * @param string $input File upload field name
+     * @param bool $return_content If true, returns uploaded file contents
+     *
+     * @return array|null
+     */
+    public static function fileAttachment($input = 'fileUpload', $return_content = \true)
+    {
+    }
+    public static function changeFileMTime($file_name)
+    {
+    }
+    public static function waitUntilFileIsModified($file_name, $timeout = 180)
+    {
+    }
+    /**
+     * Delete a substring from another one starting from the right.
+     *
+     * @param string $str
+     * @param string $str_search
+     *
+     * @return string
+     */
+    public static function rtrimString($str, $str_search)
+    {
+    }
+    /**
+     * Format a number into a human readable format
+     * e.g. 24962496 => 23.81M.
+     *
+     * @param float $size
+     * @param int $precision
+     *
+     * @return string
+     */
+    public static function formatBytes($size, $precision = 2)
+    {
+    }
+    public static function boolVal($value)
+    {
+    }
+    public static function getUserPlatform()
+    {
+    }
+    public static function getUserBrowser()
+    {
+    }
+    public static function purifyHTML($html, $uri_unescape = \null, $allow_style = \false)
+    {
+    }
+    /**
+     * Check if a constant was already defined.
+     *
+     * @param string $constant Constant name
+     * @param mixed $value Default value to set if not defined
+     */
+    public static function safeDefine($constant, $value)
+    {
+    }
+    /**
+     * Spread an amount on lines, adjusting the $column field,
+     * with the biggest adjustments going to the rows having the
+     * highest $sort_column.
+     *
+     * E.g.:
+     * $rows = [['a' => 5.1], ['a' => 8.2]];
+     * spreadAmount(0.3, 1, $rows, 'a');
+     * => $rows is [['a' => 8.4], ['a' => 5.2]]
+     *
+     * @param float $amount The amount to spread across the rows
+     * @param int $precision Rounding precision
+     *                       e.g. if $amount is 1, $precision is 0 and $rows = [['a' => 2], ['a' => 1]]
+     *                       then the resulting $rows will be [['a' => 3], ['a' => 1]]
+     *                       But if $precision were 1, then the resulting $rows would be [['a' => 2.5], ['a' => 1.5]]
+     * @param array $rows An array, associative or not, containing arrays that have at least $column and $sort_column fields
+     * @param string $column The column on which to perform adjustments
+     */
+    public static function spreadAmount($amount, $precision, &$rows, $column)
+    {
+    }
+    /**
+     * Return path to a Product or a CMS category.
+     *
+     * @param string $url_base Start URL
+     * @param int $id_category Start category
+     * @param string $path Current path
+     * @param string $highlight String to highlight (in XHTML/CSS)
+     * @param string $category_type Category type (products/cms)
+     * @param bool $home
+     */
+    public static function getPath($url_base, $id_category, $path = '', $highlight = '', $category_type = 'catalog', $home = \false)
+    {
+    }
+    public static function redirectToInstall()
+    {
+    }
+    /**
+     * @param array $fallbackParameters
+     */
+    public static function setFallbackParameters(array $fallbackParameters): void
+    {
+    }
+    /**
+     * @param string $file_to_refresh
+     * @param string $external_file
+     *
+     * @return bool
+     */
+    public static function refreshFile(string $file_to_refresh, string $external_file): bool
+    {
+    }
+    /**
+     * @param string $file
+     * @param int $timeout
+     *
+     * @return bool
+     */
+    public static function isFileFresh(string $file, int $timeout = self::CACHE_LIFETIME_SECONDS): bool
+    {
+    }
+    /**
+     * @return bool
+     */
+    public static function isCountryFromBrowserAvailable(): bool
+    {
+    }
+    /**
+     * @return string|null
+     */
+    public static function getCountryIsoCodeFromHeader(): ?string
+    {
+    }
+    /**
+     * Inserts a new element in array after a given index
+     *
+     * @param array $array Array to modify
+     * @param string $targetKey Key to search for
+     * @param string $newDataKey Key for an added data
+     * @param array $newDataArray New data to insert
+     *
+     * @return array
+     */
+    public static function arrayInsertElementAfterKey(array $array, string $targetKey, string $newDataKey, array $newDataArray): array
+    {
+    }
+    /**
+     * Generate a URL corresponding to the current page but
+     * with the query string altered.
+     *
+     * If $extraParams is set to NULL, then all query params are stripped.
+     *
+     * Otherwise, params from $extraParams that have a null value are stripped,
+     * and other params are added. Params not in $extraParams are unchanged.
+     */
+    public static function updateCurrentQueryString(?array $extraParams = \null): string
+    {
+    }
+    /**
+     * Checks if the current visitor is allowed to view the page even if maintenace mode is on, either via IP whitelist or being logged in in backoffice.
+     */
+    public static function isAllowedToBypassMaintenance()
+    {
+    }
+    /**
+     * Converts HTML content to readable plain text.
+     *
+     * @param string $html
+     *
+     * @return string
+     */
+    public static function htmlToText($html)
+    {
+    }
+}
+/**
+ * Compare 2 prices to sort products.
+ *
+ * @param array{"price_tmp": float} $a
+ * @param array{"price_tmp": float} $b
+ *
+ * @return int
+ */
+function cmpPriceAsc($a, $b)
+{
+}
+/**
+ * @param array{"price_tmp": float} $a
+ * @param array{"price_tmp": float} $b
+ *
+ * @return int
+ */
+function cmpPriceDesc($a, $b)
+{
+}

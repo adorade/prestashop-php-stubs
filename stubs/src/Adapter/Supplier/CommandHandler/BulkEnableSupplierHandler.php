@@ -1,0 +1,19 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\Supplier\CommandHandler;
+
+/**
+ * Class BulkEnableSupplierHandler is responsible for enabling multiple suppliers.
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+final class BulkEnableSupplierHandler implements \PrestaShop\PrestaShop\Core\Domain\Supplier\CommandHandler\BulkEnableSupplierHandlerInterface
+{
+    /**
+     * {@inheritdoc}
+     *
+     * @throws \PrestaShop\PrestaShop\Core\Domain\Supplier\Exception\SupplierException
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\Supplier\Command\BulkEnableSupplierCommand $command)
+    {
+    }
+}

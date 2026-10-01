@@ -1,0 +1,27 @@
+<?php
+
+namespace PrestaShopBundle\Form\Admin\Sell\Product\Pricing;
+
+class UnitPriceType extends \PrestaShopBundle\Form\Admin\Type\TranslatorAwareType
+{
+    /**
+     * @param \Symfony\Contracts\Translation\TranslatorInterface $translator
+     * @param array $locales
+     * @param string $defaultCurrencyIsoCode
+     */
+    public function __construct(\Symfony\Contracts\Translation\TranslatorInterface $translator, array $locales, string $defaultCurrencyIsoCode)
+    {
+    }
+    /**
+     * {@inheritDoc}
+     */
+    public function buildForm(\Symfony\Component\Form\FormBuilderInterface $builder, array $options)
+    {
+    }
+    /**
+     * {@inheritDoc}
+     */
+    public function configureOptions(\Symfony\Component\OptionsResolver\OptionsResolver $resolver)
+    {
+    }
+}
