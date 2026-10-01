@@ -1,0 +1,18 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\Language\Copier;
+
+/**
+ * Interface LanguageCopierInterface defines a language copier.
+ */
+interface LanguageCopierInterface
+{
+    /**
+     * Copies a language with given config.
+     *
+     * @param LanguageCopierConfigInterface $config
+     *
+     * @return array of errors if any occurred, empty array otherwise
+     */
+    public function copy(\PrestaShop\PrestaShop\Core\Language\Copier\LanguageCopierConfigInterface $config);
+}
