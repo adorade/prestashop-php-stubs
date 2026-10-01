@@ -10,7 +10,7 @@
   #   ./scripts/create-stub.sh [--version VERSION] [--force] [--clean-cache DAYS]
   #
   # Requirements:
-  #   - bash, curl, jq, 7z, shasum, git and generate-stubs (php-stubs/generator)
+  #   - bash, curl, 7z, shasum, git and generate-stubs (php-stubs/generator)
 
 set -eu -o pipefail
 
@@ -75,12 +75,18 @@ clean_prestashop () {
 ps_download () {
   local version=$1
   local ps_dir="$2"
+  local major=$(echo "$version" | awk -F. '{ print $1 }')
+  local repo="PrestaShop/PrestaShop"
+
+  if [ "$major" -eq 9 ]; then
+    repo="jbromain/prestashop-community"
+  fi
 
   mkdir -p "${ps_dir}"
 
   if [ ! -f "${ps_dir}/prestashop.zip" ]; then
     show_step "$version" "Downloading PrestaShop"
-    curl -fsSL "https://github.com/PrestaShop/PrestaShop/releases/download/${version}/prestashop_${version}.zip" \
+    curl -fsSL "https://github.com/${repo}/releases/download/${version}/prestashop_${version}.zip" \
       -o "${ps_dir}/prestashop.zip"
   fi
 }
@@ -232,10 +238,12 @@ clean_cache () {
 if [ -n "$SPECIFIC_VERSION" ]; then
   tag="$SPECIFIC_VERSION"
 else
-  # Fetch the latest PrestaShop 8 version tag from GitHub API
+  # Fetch the latest PrestaShop 8 or 9 version tag from GitHub API
   tag=$(curl -fsSL https://api.github.com/repos/PrestaShop/PrestaShop/git/matching-refs/tags \
-    | jq -rc '.[] | select(.ref | test("\\d+\\.\\d+\\.\\d+$")) | .ref | match("\\d+\\.\\d+\\.\\d+(\\.\\d+)?") | .string' \
-    | sort -V | grep '^8\.' | tail -1)
+    | grep -o '"ref": "[^"]*"' \
+    | sed 's/.*refs\/tags\///; s/"//g' \
+    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+    | sort -V | grep -E '^(8|9)\.' | tail -1)
 fi
 
 if [ -n "$tag" ]; then
@@ -245,10 +253,10 @@ if [ -n "$tag" ]; then
   ps_dir="${work_dir}/tmp/${tag}"
   ps_files="${ps_dir}/files"
 
-  # 2. Check major version compatibility (only PrestaShop 8.x is supported)
+  # 2. Check major version compatibility (only PrestaShop 8.x and 9.x are supported)
   major=$(echo "$tag" | awk -F. '{ print $1 }')
-  if [ "$major" -lt 8 ] || [ "$major" -gt 8 ]; then
-    echo "[$tag] Skipped: PrestaShop version $tag is not supported. Only versions 8.x are supported."
+  if [ "$major" -lt 8 ] || [ "$major" -gt 9 ]; then
+    echo "[$tag] Skipped: PrestaShop version $tag is not supported. Only versions 8.x and 9.x are supported."
     exit 0
   fi
 
