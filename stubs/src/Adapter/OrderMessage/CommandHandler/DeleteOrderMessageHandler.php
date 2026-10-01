@@ -1,0 +1,19 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\OrderMessage\CommandHandler;
+
+/**
+ * Handles deleting order message using object model
+ *
+ * @internal
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+final class DeleteOrderMessageHandler extends \PrestaShop\PrestaShop\Adapter\OrderMessage\AbstractOrderMessageHandler implements \PrestaShop\PrestaShop\Core\Domain\OrderMessage\CommandHandler\DeleteOrderMessageHandlerInterface
+{
+    /**
+     * @param \PrestaShop\PrestaShop\Core\Domain\OrderMessage\Command\DeleteOrderMessageCommand $command
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\OrderMessage\Command\DeleteOrderMessageCommand $command): void
+    {
+    }
+}

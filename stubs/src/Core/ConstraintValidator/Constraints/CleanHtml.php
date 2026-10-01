@@ -1,0 +1,20 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Core\ConstraintValidator\Constraints;
+
+/**
+ * Class CleanHtml is responsible for validating the html content to prevent from having javascript events
+ * or script tags.
+ */
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
+final class CleanHtml extends \Symfony\Component\Validator\Constraint
+{
+    public $message = '%s is invalid.';
+    public $embeddableHtmlMessage = '%s contains embedded HTML elements (iframe, frame, form, input, embed, object) which are not allowed. To allow them, enable "Allow iframes on HTML fields" in Shop Parameters > General settings.';
+    /**
+     * {@inheritdoc}
+     */
+    public function validatedBy()
+    {
+    }
+}

@@ -1,0 +1,19 @@
+<?php
+
+namespace PrestaShopBundle\Form\Extension;
+
+class CommaTransformerExtension extends \Symfony\Component\Form\AbstractTypeExtension
+{
+    /**
+     * {@inheritdoc}
+     */
+    public static function getExtendedTypes(): iterable
+    {
+    }
+    /**
+     * @param \Symfony\Component\OptionsResolver\OptionsResolver $resolver
+     */
+    public function configureOptions(\Symfony\Component\OptionsResolver\OptionsResolver $resolver): void
+    {
+    }
+}

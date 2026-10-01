@@ -1,0 +1,27 @@
+<?php
+
+namespace PrestaShop\PrestaShop\Adapter\Contact\CommandHandler;
+
+/**
+ * Class EditContactHandler is responsible for editing contact data.
+ *
+ * @internal
+ */
+#[\PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler]
+final class EditContactHandler extends \PrestaShop\PrestaShop\Adapter\Domain\AbstractObjectModelHandler implements \PrestaShop\PrestaShop\Core\Domain\Contact\CommandHandler\EditContactHandlerInterface
+{
+    /**
+     * @param \Symfony\Component\Validator\Validator\ValidatorInterface $validator
+     */
+    public function __construct(\Symfony\Component\Validator\Validator\ValidatorInterface $validator)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     *
+     * @throws \PrestaShop\PrestaShop\Core\Domain\Contact\Exception\ContactException
+     */
+    public function handle(\PrestaShop\PrestaShop\Core\Domain\Contact\Command\EditContactCommand $command)
+    {
+    }
+}
